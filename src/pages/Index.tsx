@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import RecipeForm, { RecipeFormData } from "@/components/RecipeForm";
 import RecipeDisplay, { Recipe } from "@/components/RecipeDisplay";
 import { toast } from "sonner";
@@ -10,39 +12,33 @@ const Index = () => {
   const handleSubmit = async (data: RecipeFormData) => {
     setIsLoading(true);
     try {
-      // For demo purposes, we'll use a mock recipe
-      // In a real app, this would call an AI service
-      const mockRecipe: Recipe = {
-        title: "Homemade Pasta with Fresh Tomato Sauce",
-        description:
-          "A delicious and simple pasta dish made with fresh ingredients.",
-        ingredients: [
-          "2 cups all-purpose flour",
-          "3 large eggs",
-          "4 ripe tomatoes",
-          "2 cloves garlic",
-          "Fresh basil leaves",
-          "Olive oil",
-          "Salt and pepper to taste",
-        ],
-        instructions: [
-          "Mix flour and eggs to make pasta dough",
-          "Rest dough for 30 minutes",
-          "Roll out and cut pasta into desired shape",
-          "Dice tomatoes and mince garlic",
-          "Sauté garlic in olive oil",
-          "Add tomatoes and simmer for 15 minutes",
-          "Cook pasta in boiling water",
-          "Combine pasta with sauce and garnish with basil",
-        ],
-        cookingTime: "45 minutes",
-        difficulty: "Medium",
-        imageUrl: "/placeholder.svg", // Replace with AI-generated image
-      };
+      const response = await supabase.functions.invoke('generate-recipe', {
+        body: {
+          ingredients: data.ingredients,
+          dietary: data.dietary,
+          cuisine: data.cuisine,
+        },
+      });
 
-      setRecipe(mockRecipe);
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const generatedRecipe = response.data;
+      setRecipe(generatedRecipe);
+
+      // Save the recipe to the database
+      const { error: saveError } = await supabase
+        .from('recipes')
+        .insert([generatedRecipe]);
+
+      if (saveError) {
+        console.error('Error saving recipe:', saveError);
+        toast.error('Recipe generated but failed to save');
+      }
     } catch (error) {
-      toast.error("Failed to generate recipe");
+      console.error('Error:', error);
+      toast.error('Failed to generate recipe');
     } finally {
       setIsLoading(false);
     }
