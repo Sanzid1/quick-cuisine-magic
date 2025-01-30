@@ -1,14 +1,13 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const EDAMAM_APP_ID = Deno.env.get('EDAMAM_APP_ID');
+const EDAMAM_APP_KEY = Deno.env.get('EDAMAM_APP_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -21,78 +20,64 @@ serve(async (req) => {
 
     console.log('Generating recipe with:', { ingredients, dietary, cuisine });
 
-    // Add retry logic for rate limits
-    let retries = 3;
-    let response;
+    // Convert ingredients array to a search query
+    const searchQuery = ingredients.join(' ');
     
-    while (retries > 0) {
-      response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openAIApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a professional chef who creates recipes based on available ingredients.'
-            },
-            {
-              role: 'user',
-              content: `Create a recipe using these ingredients: ${ingredients}.${dietary ? ` Make it ${dietary}.` : ''}${cuisine ? ` Style: ${cuisine} cuisine.` : ''}\n\nProvide the response in this exact JSON format:\n{
-                "title": "Recipe Title",
-                "description": "Brief description",
-                "ingredients": ["ingredient 1", "ingredient 2"],
-                "instructions": ["step 1", "step 2"],
-                "cookingTime": "30 minutes",
-                "difficulty": "Easy/Medium/Hard",
-                "imageUrl": "/placeholder.svg"
-              }`
-            }
-          ],
-        }),
-      });
-
-      if (response.status === 429) {
-        console.log(`Rate limited, retries left: ${retries}`);
-        retries--;
-        if (retries > 0) {
-          await delay(1000); // Wait 1 second before retrying
-          continue;
-        }
-      }
-      break;
+    // Build the URL with query parameters
+    const url = new URL('https://api.edamam.com/api/recipes/v2');
+    url.searchParams.append('type', 'public');
+    url.searchParams.append('q', searchQuery);
+    url.searchParams.append('app_id', EDAMAM_APP_ID!);
+    url.searchParams.append('app_key', EDAMAM_APP_KEY!);
+    
+    // Add dietary restrictions if provided
+    if (dietary) {
+      url.searchParams.append('health', dietary.toLowerCase());
+    }
+    
+    // Add cuisine type if provided
+    if (cuisine) {
+      url.searchParams.append('cuisineType', cuisine.toLowerCase());
     }
 
-    if (!response || !response.ok) {
-      throw new Error(`OpenAI API error: ${response?.status}`);
+    const response = await fetch(url.toString());
+
+    if (!response.ok) {
+      throw new Error(`Edamam API error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('OpenAI response:', data);
-
-    if (!data.choices?.[0]?.message?.content) {
-      throw new Error('Invalid response structure from OpenAI');
+    
+    if (!data.hits || data.hits.length === 0) {
+      throw new Error('No recipes found');
     }
 
-    const recipe = JSON.parse(data.choices[0].message.content);
+    // Get the first recipe
+    const recipe = data.hits[0].recipe;
 
-    return new Response(JSON.stringify(recipe), {
+    // Transform the Edamam response to match our app's format
+    const transformedRecipe = {
+      title: recipe.label,
+      description: `A delicious ${recipe.cuisineType?.[0] || ''} recipe with ${recipe.ingredients.length} ingredients`,
+      ingredients: recipe.ingredients.map((ing: any) => ing.text),
+      instructions: recipe.ingredientLines,
+      cookingTime: recipe.totalTime ? `${recipe.totalTime} minutes` : "30-45 minutes",
+      difficulty: recipe.ingredients.length <= 5 ? "Easy" : recipe.ingredients.length <= 8 ? "Medium" : "Hard",
+      imageUrl: recipe.image || "/placeholder.svg",
+      cuisine: recipe.cuisineType?.[0] || cuisine || null,
+      dietary: recipe.healthLabels?.[0] || dietary || null
+    };
+
+    console.log('Transformed recipe:', transformedRecipe);
+
+    return new Response(JSON.stringify(transformedRecipe), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Error generating recipe:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Failed to generate recipe',
-        details: error.toString()
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    console.error('Error in generate-recipe function:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });

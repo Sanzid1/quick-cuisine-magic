@@ -2,7 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import RecipeForm, { RecipeFormData } from "@/components/RecipeForm";
 import RecipeDisplay, { Recipe } from "@/components/RecipeDisplay";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -30,7 +30,11 @@ const Index = () => {
       if (generatedRecipe) {
         const user = await supabase.auth.getUser();
         if (!user.data.user) {
-          toast.error('You must be logged in to save recipes');
+          toast({
+            title: "Error",
+            description: "You must be logged in to save recipes",
+            variant: "destructive",
+          });
           return;
         }
 
@@ -51,14 +55,25 @@ const Index = () => {
 
         if (saveError) {
           console.error('Error saving recipe:', saveError);
-          toast.error('Recipe generated but failed to save');
+          toast({
+            title: "Warning",
+            description: "Recipe generated but failed to save",
+            variant: "destructive",
+          });
         } else {
-          toast.success('Recipe saved successfully!');
+          toast({
+            title: "Success",
+            description: "Recipe saved successfully!",
+          });
         }
       }
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Failed to generate recipe');
+      toast({
+        title: "Error",
+        description: "Failed to generate recipe",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
