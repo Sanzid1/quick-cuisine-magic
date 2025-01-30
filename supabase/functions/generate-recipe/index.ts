@@ -8,6 +8,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -19,37 +21,53 @@ serve(async (req) => {
 
     console.log('Generating recipe with:', { ingredients, dietary, cuisine });
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a professional chef who creates recipes based on available ingredients.'
-          },
-          {
-            role: 'user',
-            content: `Create a recipe using these ingredients: ${ingredients}.${dietary ? ` Make it ${dietary}.` : ''}${cuisine ? ` Style: ${cuisine} cuisine.` : ''}\n\nProvide the response in this exact JSON format:\n{
-              "title": "Recipe Title",
-              "description": "Brief description",
-              "ingredients": ["ingredient 1", "ingredient 2"],
-              "instructions": ["step 1", "step 2"],
-              "cookingTime": "30 minutes",
-              "difficulty": "Easy/Medium/Hard",
-              "imageUrl": "/placeholder.svg"
-            }`
-          }
-        ],
-      }),
-    });
+    // Add retry logic for rate limits
+    let retries = 3;
+    let response;
+    
+    while (retries > 0) {
+      response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openAIApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a professional chef who creates recipes based on available ingredients.'
+            },
+            {
+              role: 'user',
+              content: `Create a recipe using these ingredients: ${ingredients}.${dietary ? ` Make it ${dietary}.` : ''}${cuisine ? ` Style: ${cuisine} cuisine.` : ''}\n\nProvide the response in this exact JSON format:\n{
+                "title": "Recipe Title",
+                "description": "Brief description",
+                "ingredients": ["ingredient 1", "ingredient 2"],
+                "instructions": ["step 1", "step 2"],
+                "cookingTime": "30 minutes",
+                "difficulty": "Easy/Medium/Hard",
+                "imageUrl": "/placeholder.svg"
+              }`
+            }
+          ],
+        }),
+      });
 
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+      if (response.status === 429) {
+        console.log(`Rate limited, retries left: ${retries}`);
+        retries--;
+        if (retries > 0) {
+          await delay(1000); // Wait 1 second before retrying
+          continue;
+        }
+      }
+      break;
+    }
+
+    if (!response || !response.ok) {
+      throw new Error(`OpenAI API error: ${response?.status}`);
     }
 
     const data = await response.json();
@@ -67,7 +85,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error generating recipe:', error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Failed to generate recipe' }),
+      JSON.stringify({ 
+        error: error.message || 'Failed to generate recipe',
+        details: error.toString()
+      }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

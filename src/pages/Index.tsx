@@ -28,16 +28,32 @@ const Index = () => {
 
       // Only try to save if we have a valid recipe
       if (generatedRecipe) {
+        const user = await supabase.auth.getUser();
+        if (!user.data.user) {
+          toast.error('You must be logged in to save recipes');
+          return;
+        }
+
         const { error: saveError } = await supabase
           .from('recipes')
           .insert([{
-            ...generatedRecipe,
-            user_id: (await supabase.auth.getUser()).data.user?.id
+            title: generatedRecipe.title,
+            description: generatedRecipe.description,
+            ingredients: generatedRecipe.ingredients,
+            instructions: generatedRecipe.instructions,
+            cooking_time: generatedRecipe.cookingTime,
+            difficulty: generatedRecipe.difficulty,
+            image_url: generatedRecipe.imageUrl,
+            cuisine: data.cuisine || null,
+            dietary: data.dietary || null,
+            user_id: user.data.user.id
           }]);
 
         if (saveError) {
           console.error('Error saving recipe:', saveError);
           toast.error('Recipe generated but failed to save');
+        } else {
+          toast.success('Recipe saved successfully!');
         }
       }
     } catch (error) {
