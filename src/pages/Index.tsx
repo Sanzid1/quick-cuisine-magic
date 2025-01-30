@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import RecipeForm, { RecipeFormData } from "@/components/RecipeForm";
 import RecipeDisplay, { Recipe } from "@/components/RecipeDisplay";
@@ -24,17 +23,22 @@ const Index = () => {
         throw new Error(response.error.message);
       }
 
-      const generatedRecipe = response.data;
+      const generatedRecipe = response.data as Recipe;
       setRecipe(generatedRecipe);
 
-      // Save the recipe to the database
-      const { error: saveError } = await supabase
-        .from('recipes')
-        .insert([generatedRecipe]);
+      // Only try to save if we have a valid recipe
+      if (generatedRecipe) {
+        const { error: saveError } = await supabase
+          .from('recipes')
+          .insert([{
+            ...generatedRecipe,
+            user_id: (await supabase.auth.getUser()).data.user?.id
+          }]);
 
-      if (saveError) {
-        console.error('Error saving recipe:', saveError);
-        toast.error('Recipe generated but failed to save');
+        if (saveError) {
+          console.error('Error saving recipe:', saveError);
+          toast.error('Recipe generated but failed to save');
+        }
       }
     } catch (error) {
       console.error('Error:', error);
