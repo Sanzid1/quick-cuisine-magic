@@ -20,8 +20,8 @@ serve(async (req) => {
 
     console.log('Generating recipe with:', { ingredients, dietary, cuisine });
 
-    // Convert ingredients array to a search query
-    const searchQuery = ingredients.join(' ');
+    // Use ingredients directly as it's already a string
+    const searchQuery = ingredients;
     
     // Build the URL with query parameters
     const url = new URL('https://api.edamam.com/api/recipes/v2');
@@ -39,6 +39,8 @@ serve(async (req) => {
     if (cuisine) {
       url.searchParams.append('cuisineType', cuisine.toLowerCase());
     }
+
+    console.log('Calling Edamam API with URL:', url.toString());
 
     const response = await fetch(url.toString());
 
