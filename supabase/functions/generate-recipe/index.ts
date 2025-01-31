@@ -19,6 +19,11 @@ serve(async (req) => {
     const { ingredients, dietary, cuisine } = await req.json();
 
     console.log('Generating recipe with:', { ingredients, dietary, cuisine });
+    console.log('Using Edamam credentials - APP_ID:', EDAMAM_APP_ID?.substring(0, 5) + '...');
+
+    if (!EDAMAM_APP_ID || !EDAMAM_APP_KEY) {
+      throw new Error('Missing Edamam API credentials');
+    }
 
     // Use ingredients directly as it's already a string
     const searchQuery = ingredients;
@@ -27,8 +32,8 @@ serve(async (req) => {
     const url = new URL('https://api.edamam.com/api/recipes/v2');
     url.searchParams.append('type', 'public');
     url.searchParams.append('q', searchQuery);
-    url.searchParams.append('app_id', EDAMAM_APP_ID!);
-    url.searchParams.append('app_key', EDAMAM_APP_KEY!);
+    url.searchParams.append('app_id', EDAMAM_APP_ID);
+    url.searchParams.append('app_key', EDAMAM_APP_KEY);
     
     // Add dietary restrictions if provided
     if (dietary) {
@@ -40,11 +45,12 @@ serve(async (req) => {
       url.searchParams.append('cuisineType', cuisine.toLowerCase());
     }
 
-    console.log('Calling Edamam API with URL:', url.toString());
+    console.log('Calling Edamam API with URL:', url.toString().replace(EDAMAM_APP_KEY, 'HIDDEN'));
 
     const response = await fetch(url.toString());
 
     if (!response.ok) {
+      console.error('Edamam API error:', response.status, await response.text());
       throw new Error(`Edamam API error: ${response.status}`);
     }
 
