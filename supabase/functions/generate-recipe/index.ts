@@ -22,11 +22,16 @@ serve(async (req) => {
   }
 
   try {
-    // Validate environment variables
+    // Validate environment variables with detailed logging
     if (!EDAMAM_APP_ID || !EDAMAM_APP_KEY) {
-      console.error('Missing Edamam API credentials');
+      console.error('Missing Edamam API credentials:', {
+        hasAppId: !!EDAMAM_APP_ID,
+        hasAppKey: !!EDAMAM_APP_KEY
+      });
       throw new Error('Missing API credentials');
     }
+
+    console.log('API credentials validated successfully');
 
     // Parse and validate request body
     if (!req.body) {
@@ -56,13 +61,21 @@ serve(async (req) => {
       url.searchParams.append('cuisineType', cuisine.toLowerCase());
     }
 
-    console.log('Calling Edamam API...');
+    console.log('Calling Edamam API with credentials:', {
+      appIdPrefix: EDAMAM_APP_ID.substring(0, 4) + '...',
+      appKeyPrefix: EDAMAM_APP_KEY.substring(0, 4) + '...'
+    });
 
     const response = await fetch(url.toString());
     
     if (!response.ok) {
-      console.error('Edamam API error:', response.status);
-      throw new Error(`Edamam API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Edamam API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      });
+      throw new Error(`Edamam API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
@@ -93,7 +106,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in generate-recipe function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: error instanceof Error ? error.stack : undefined
+      }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
