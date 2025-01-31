@@ -46,13 +46,12 @@ serve(async (req) => {
       appKeyPresent: !!EDAMAM_APP_KEY
     });
 
-    // Build the URL with query parameters - Updated to use the correct endpoint
+    // Build the URL with query parameters
     const url = new URL('https://api.edamam.com/api/recipes/v2');
     url.searchParams.append('type', 'public');
     url.searchParams.append('q', ingredients);
     url.searchParams.append('app_id', EDAMAM_APP_ID);
     url.searchParams.append('app_key', EDAMAM_APP_KEY);
-    url.searchParams.append('random', 'true'); // Add randomization for more variety
 
     if (dietary) {
       url.searchParams.append('health', dietary.toLowerCase());
