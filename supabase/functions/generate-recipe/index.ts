@@ -7,6 +7,8 @@ const EDAMAM_APP_KEY = Deno.env.get('EDAMAM_APP_KEY');
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json',
 };
 
 interface RequestBody {
@@ -22,6 +24,12 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Request received:', {
+      method: req.method,
+      url: req.url,
+      headers: Object.fromEntries(req.headers.entries())
+    });
+
     // Validate environment variables
     if (!EDAMAM_APP_ID || !EDAMAM_APP_KEY) {
       console.error('Missing API credentials:', {
@@ -34,7 +42,7 @@ serve(async (req) => {
     // Parse and validate request body
     const requestBody = await req.json().catch(error => {
       console.error('Error parsing request body:', error);
-      throw new Error('Invalid request body');
+      throw new Error('Invalid request body format');
     });
 
     const { ingredients, dietary, cuisine } = requestBody as RequestBody;
@@ -43,12 +51,10 @@ serve(async (req) => {
       throw new Error('Ingredients are required');
     }
 
-    console.log('Request received:', {
+    console.log('Processing request with:', {
       ingredients,
       dietary,
-      cuisine,
-      appIdPresent: !!EDAMAM_APP_ID,
-      appKeyPresent: !!EDAMAM_APP_KEY
+      cuisine
     });
 
     // Build the URL with query parameters
@@ -71,7 +77,7 @@ serve(async (req) => {
     // Make the request with the required headers
     const response = await fetch(url.toString(), {
       headers: {
-        'Edamam-Account-User': 'default_user', // Adding required user ID header
+        'Edamam-Account-User': 'default_user',
         'Content-Type': 'application/json'
       }
     });
@@ -109,13 +115,12 @@ serve(async (req) => {
     console.log('Successfully transformed recipe');
 
     return new Response(JSON.stringify(transformedRecipe), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: corsHeaders
     });
 
   } catch (error) {
     console.error('Error in generate-recipe function:', error);
     
-    // Return a more detailed error response
     return new Response(
       JSON.stringify({ 
         error: error.message,
@@ -123,7 +128,7 @@ serve(async (req) => {
       }),
       { 
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: corsHeaders
       }
     );
   }
