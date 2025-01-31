@@ -32,13 +32,18 @@ serve(async (req) => {
     }
 
     // Parse and validate request body
-    const { ingredients, dietary, cuisine } = await req.json() as RequestBody;
+    const requestBody = await req.json().catch(error => {
+      console.error('Error parsing request body:', error);
+      throw new Error('Invalid request body');
+    });
+
+    const { ingredients, dietary, cuisine } = requestBody as RequestBody;
 
     if (!ingredients) {
       throw new Error('Ingredients are required');
     }
 
-    console.log('Making request with:', {
+    console.log('Request received:', {
       ingredients,
       dietary,
       cuisine,
@@ -61,7 +66,7 @@ serve(async (req) => {
       url.searchParams.append('cuisineType', cuisine.toLowerCase());
     }
 
-    console.log('Attempting API call to:', url.toString().replace(EDAMAM_APP_KEY, '[REDACTED]'));
+    console.log('Making request to Edamam API:', url.toString().replace(EDAMAM_APP_KEY, '[REDACTED]'));
 
     const response = await fetch(url.toString());
     
@@ -76,7 +81,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('API Response:', JSON.stringify(data, null, 2));
+    console.log('Received response from Edamam API');
 
     if (!data.hits || data.hits.length === 0) {
       throw new Error('No recipes found for the given ingredients');
@@ -95,7 +100,7 @@ serve(async (req) => {
       dietary: recipe.healthLabels?.[0] || dietary || null
     };
 
-    console.log('Successfully generated recipe');
+    console.log('Successfully transformed recipe');
 
     return new Response(JSON.stringify(transformedRecipe), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -103,6 +108,8 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in generate-recipe function:', error);
+    
+    // Return a more detailed error response
     return new Response(
       JSON.stringify({ 
         error: error.message,
