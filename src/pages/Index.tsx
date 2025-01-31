@@ -2,7 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import RecipeForm, { RecipeFormData } from "@/components/RecipeForm";
 import RecipeDisplay, { Recipe } from "@/components/RecipeDisplay";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -30,11 +30,7 @@ const Index = () => {
       if (generatedRecipe) {
         const user = await supabase.auth.getUser();
         if (!user.data.user) {
-          toast({
-            title: "Error",
-            description: "You must be logged in to save recipes",
-            variant: "destructive",
-          });
+          toast.error("You must be logged in to save recipes");
           return;
         }
 
@@ -47,7 +43,6 @@ const Index = () => {
             instructions: generatedRecipe.instructions,
             cooking_time: generatedRecipe.cookingTime,
             difficulty: generatedRecipe.difficulty,
-            image_url: generatedRecipe.imageUrl,
             cuisine: data.cuisine || null,
             dietary: data.dietary || null,
             user_id: user.data.user.id
@@ -55,25 +50,14 @@ const Index = () => {
 
         if (saveError) {
           console.error('Error saving recipe:', saveError);
-          toast({
-            title: "Warning",
-            description: "Recipe generated but failed to save",
-            variant: "destructive",
-          });
+          toast.error("Failed to save recipe to database");
         } else {
-          toast({
-            title: "Success",
-            description: "Recipe saved successfully!",
-          });
+          toast.success("Recipe generated and saved successfully!");
         }
       }
     } catch (error) {
       console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to generate recipe",
-        variant: "destructive",
-      });
+      toast.error("Failed to generate recipe");
     } finally {
       setIsLoading(false);
     }
@@ -88,8 +72,7 @@ const Index = () => {
           </h1>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
             Enter your ingredients and let AI create the perfect recipe for you.
-            Get instant recipes with step-by-step instructions and beautiful
-            visuals.
+            Get instant recipes with step-by-step instructions.
           </p>
         </header>
 

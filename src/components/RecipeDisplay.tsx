@@ -10,7 +10,6 @@ export interface Recipe {
   instructions: string[];
   cookingTime: string;
   difficulty: string;
-  imageUrl: string;
 }
 
 interface RecipeDisplayProps {
@@ -55,14 +54,6 @@ const RecipeDisplay = ({ recipe }: RecipeDisplayProps) => {
             {recipe.difficulty}
           </div>
         </div>
-      </div>
-
-      <div className="relative aspect-video w-full overflow-hidden rounded-lg">
-        <img
-          src={recipe.imageUrl}
-          alt={recipe.title}
-          className="object-cover w-full h-full"
-        />
       </div>
 
       <div className="space-y-4">

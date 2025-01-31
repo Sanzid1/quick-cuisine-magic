@@ -63,7 +63,6 @@ serve(async (req) => {
       instructions: recipe.ingredientLines,
       cookingTime: recipe.totalTime ? `${recipe.totalTime} minutes` : "30-45 minutes",
       difficulty: recipe.ingredients.length <= 5 ? "Easy" : recipe.ingredients.length <= 8 ? "Medium" : "Hard",
-      imageUrl: recipe.image || "/placeholder.svg",
       cuisine: recipe.cuisineType?.[0] || cuisine || null,
       dietary: recipe.healthLabels?.[0] || dietary || null
     };
