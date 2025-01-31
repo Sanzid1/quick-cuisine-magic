@@ -68,7 +68,13 @@ serve(async (req) => {
 
     console.log('Making request to Edamam API:', url.toString().replace(EDAMAM_APP_KEY, '[REDACTED]'));
 
-    const response = await fetch(url.toString());
+    // Make the request with the required headers
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Edamam-Account-User': 'default_user', // Adding required user ID header
+        'Content-Type': 'application/json'
+      }
+    });
     
     if (!response.ok) {
       const errorText = await response.text();
