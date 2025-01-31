@@ -9,6 +9,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface RequestBody {
+  ingredients: string;
+  dietary?: string;
+  cuisine?: string;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -16,7 +22,17 @@ serve(async (req) => {
   }
 
   try {
-    const { ingredients, dietary, cuisine } = await req.json();
+    console.log('Function started, validating request...');
+    
+    if (!req.body) {
+      throw new Error('Request body is missing');
+    }
+
+    const { ingredients, dietary, cuisine } = await req.json() as RequestBody;
+
+    if (!ingredients) {
+      throw new Error('Ingredients are required');
+    }
 
     console.log('Generating recipe with:', { ingredients, dietary, cuisine });
     console.log('Using Edamam credentials - APP_ID:', EDAMAM_APP_ID?.substring(0, 5) + '...');
