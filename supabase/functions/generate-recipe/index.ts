@@ -22,29 +22,29 @@ serve(async (req) => {
   }
 
   try {
-    // Validate environment variables with detailed logging
+    // Validate environment variables
     if (!EDAMAM_APP_ID || !EDAMAM_APP_KEY) {
-      console.error('Missing Edamam API credentials:', {
+      console.error('Missing API credentials:', {
         hasAppId: !!EDAMAM_APP_ID,
         hasAppKey: !!EDAMAM_APP_KEY
       });
-      throw new Error('Missing API credentials');
+      throw new Error('API credentials are not properly configured');
     }
-
-    console.log('API credentials validated successfully');
 
     // Parse and validate request body
-    if (!req.body) {
-      throw new Error('Request body is missing');
-    }
-
     const { ingredients, dietary, cuisine } = await req.json() as RequestBody;
 
     if (!ingredients) {
       throw new Error('Ingredients are required');
     }
 
-    console.log('Request received:', { ingredients, dietary, cuisine });
+    console.log('Making request with:', {
+      ingredients,
+      dietary,
+      cuisine,
+      appIdPresent: !!EDAMAM_APP_ID,
+      appKeyPresent: !!EDAMAM_APP_KEY
+    });
 
     // Build the URL with query parameters
     const url = new URL('https://api.edamam.com/api/recipes/v2');
@@ -61,11 +61,6 @@ serve(async (req) => {
       url.searchParams.append('cuisineType', cuisine.toLowerCase());
     }
 
-    console.log('Calling Edamam API with credentials:', {
-      appIdPrefix: EDAMAM_APP_ID.substring(0, 4) + '...',
-      appKeyPrefix: EDAMAM_APP_KEY.substring(0, 4) + '...'
-    });
-
     const response = await fetch(url.toString());
     
     if (!response.ok) {
@@ -81,7 +76,7 @@ serve(async (req) => {
     const data = await response.json();
 
     if (!data.hits || data.hits.length === 0) {
-      throw new Error('No recipes found');
+      throw new Error('No recipes found for the given ingredients');
     }
 
     const recipe = data.hits[0].recipe;
@@ -97,7 +92,7 @@ serve(async (req) => {
       dietary: recipe.healthLabels?.[0] || dietary || null
     };
 
-    console.log('Recipe generated successfully');
+    console.log('Successfully generated recipe');
 
     return new Response(JSON.stringify(transformedRecipe), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
